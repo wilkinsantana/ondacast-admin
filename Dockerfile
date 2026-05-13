@@ -3,7 +3,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 ARG PUBLIC_MOCK_API=0
-ARG PUBLIC_API_URL=https://api.ondacast.com
+ARG PUBLIC_API_URL=
 ENV PUBLIC_MOCK_API=$PUBLIC_MOCK_API
 ENV PUBLIC_API_URL=$PUBLIC_API_URL
 COPY package.json package-lock.json ./

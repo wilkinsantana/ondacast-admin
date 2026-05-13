@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.PUBLIC_API_URL || 'https://api.ondacast.com';
+const API_BASE = import.meta.env.PUBLIC_API_URL || '';
 const MOCK = import.meta.env.PUBLIC_MOCK_API === '1';
 
 export class ApiError extends Error {
@@ -13,8 +13,8 @@ export class ApiError extends Error {
 
 const MOCK_USER = {
   id: 'u8a4f',
-  email: 'aki@ondacast.com',
-  display_name: 'Aki Kobayashi',
+  email: 'willsann@live.com',
+  display_name: 'Wilkin Santana',
   avatar_url: null,
   role: 'admin' as const,
   plan: 'team',
