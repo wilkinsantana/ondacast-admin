@@ -2,7 +2,11 @@ version: "3.9"
 
 services:
   ondacast-admin:
-    build: .
+    build:
+      context: .
+      args:
+        PUBLIC_MOCK_API: ${PUBLIC_MOCK_API:-0}
+        PUBLIC_API_URL: ${PUBLIC_API_URL:-https://api.ondacast.com}
     container_name: ondacast-admin
     restart: unless-stopped
     ports:
@@ -10,8 +14,6 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - PUBLIC_API_URL=${PUBLIC_API_URL:-https://api.ondacast.com}
-      - PUBLIC_MOCK_API=0
     networks:
       - ondacast
 

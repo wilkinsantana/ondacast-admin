@@ -6,12 +6,18 @@
   import { auth } from '$lib/auth/auth.svelte';
   import ShellSidebar from '$lib/components/ShellSidebar.svelte';
   import ShellTopbar from '$lib/components/ShellTopbar.svelte';
-  import { Shield } from 'lucide-svelte';
+  import { Shield, WifiOff } from 'lucide-svelte';
 
   let { children } = $props();
 
+  let loadTimedOut = $state(false);
+
   onMount(() => {
-    auth.refresh();
+    auth.refresh().finally(() => { loadTimedOut = false; });
+    const timer = setTimeout(() => {
+      if (auth.status === 'unknown') loadTimedOut = true;
+    }, 6000);
+    return () => clearTimeout(timer);
   });
 
   $effect(() => {
@@ -27,13 +33,29 @@
     goto(`/${id}`);
   }
 
+  function retry() {
+    loadTimedOut = false;
+    auth.refresh();
+  }
+
   let active = $derived($page.url.pathname.split('/')[1] || 'dashboard');
 </script>
 
-{#if auth.status === 'unknown'}
+{#if auth.status === 'unknown' && !loadTimedOut}
   <div class="app-loading">
     <span class="spinner"></span>
     <p>Verifying session&hellip;</p>
+  </div>
+{:else if auth.status === 'unknown' && loadTimedOut}
+  <div class="app-loading">
+    <div class="empty">
+      <WifiOff size={28} style="color:var(--ink-faint)" />
+      <h3>Connection Error</h3>
+      <p>{auth.error || 'Unable to reach the server. Check your connection.'}</p>
+      <div style="margin-top:14px">
+        <button class="btn primary" onclick={retry}>Retry</button>
+      </div>
+    </div>
   </div>
 {:else if auth.status === 'forbidden'}
   <div class="app-loading">

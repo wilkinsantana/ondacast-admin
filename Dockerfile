@@ -2,6 +2,10 @@
 # Stage 1: build the Node.js server
 FROM node:22-alpine AS build
 WORKDIR /app
+ARG PUBLIC_MOCK_API=0
+ARG PUBLIC_API_URL=https://api.ondacast.com
+ENV PUBLIC_MOCK_API=$PUBLIC_MOCK_API
+ENV PUBLIC_API_URL=$PUBLIC_API_URL
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .

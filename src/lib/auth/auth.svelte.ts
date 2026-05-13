@@ -36,6 +36,8 @@ class AuthStore {
         this.user = null;
         this.status = 'signed-out';
       } else {
+        this.user = null;
+        this.status = 'signed-out';
         this.error = 'Failed to reach the server. Check your connection.';
       }
     }
