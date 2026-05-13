@@ -48,7 +48,8 @@ class AuthStore {
 
   async sendMagicLink(email: string): Promise<void> {
     this.error = null;
-    await requestMagicLink(email);
+    const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/magic` : undefined;
+    await requestMagicLink(email, redirectTo);
   }
 
   async verifyMagicLink(token: string): Promise<void> {
