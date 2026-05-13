@@ -25,14 +25,16 @@ const MOCK_USER = {
 function mockResponse(path: string, init?: RequestInit): unknown {
   const method = init?.method || 'GET';
 
-  if (path === '/v1/me') return { data: MOCK_USER };
+  if (path === '/me') return { user: MOCK_USER };
 
-  if (path === '/v1/auth/magic') return {};
-  if (path === '/v1/auth/magic/verify') return { data: MOCK_USER };
-  if (path === '/v1/auth/logout') return {};
-  if (path === '/v1/auth/passkey/options') return { data: MOCK_USER };
+  if (path === '/auth/magic-link/request') return {};
+  if (path === '/auth/magic-link/consume') return { ok: true, user_id: MOCK_USER.id };
+  if (path === '/auth/logout') return {};
+  if (path === '/auth/passkey/authenticate/start') return { challenge: 'mock-challenge', rpId: window?.location?.hostname || 'localhost' };
+  if (path === '/auth/passkey/authenticate/finish') return { ok: true, user_id: MOCK_USER.id };
 
-  if (path === '/v1/me/passkey/register') return {};
+  if (path === '/me/passkey/register/start') return { challenge: 'mock-challenge', rp: { name: 'OndaCast' }, user: { id: 'mock', name: MOCK_USER.email, displayName: MOCK_USER.display_name } };
+  if (path === '/me/passkey/register/finish') return { ok: true };
 
   return {};
 }

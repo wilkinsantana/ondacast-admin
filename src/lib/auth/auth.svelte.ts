@@ -23,7 +23,10 @@ class AuthStore {
     try {
       this.error = null;
       const user = await getMe();
-      if (user.role === 'admin' || user.role === 'staff') {
+      if (!user) {
+        this.user = null;
+        this.status = 'signed-out';
+      } else if (user.role === 'admin' || user.role === 'staff') {
         this.user = user;
         this.status = 'signed-in';
       } else {
@@ -31,15 +34,9 @@ class AuthStore {
         this.status = 'forbidden';
       }
     } catch (e: unknown) {
-      const err = e as { status?: number };
-      if (err.status === 401) {
-        this.user = null;
-        this.status = 'signed-out';
-      } else {
-        this.user = null;
-        this.status = 'signed-out';
-        this.error = 'Failed to reach the server. Check your connection.';
-      }
+      this.user = null;
+      this.status = 'signed-out';
+      this.error = 'Failed to reach the server. Check your connection.';
     }
   }
 
