@@ -22,10 +22,14 @@ export const handle: Handle = async ({ event, resolve }) => {
       redirect: 'manual',
     });
 
+    // Strip content-encoding: fetch() decompresses transparently
+    const outHeaders = new Headers(res.headers);
+    outHeaders.delete('content-encoding');
+
     return new Response(res.body, {
       status: res.status,
       statusText: res.statusText,
-      headers: res.headers,
+      headers: outHeaders,
     });
   }
 
@@ -45,10 +49,12 @@ export const handle: Handle = async ({ event, resolve }) => {
       redirect: 'manual',
     });
 
+    const outHeaders2 = new Headers(res.headers);
+    outHeaders2.delete('content-encoding');
     return new Response(res.body, {
       status: res.status,
       statusText: res.statusText,
-      headers: res.headers,
+      headers: outHeaders2,
     });
   }
 
