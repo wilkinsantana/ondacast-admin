@@ -127,10 +127,10 @@
     try {
       const r = await fetch('/api/epg/sync', { method: 'POST', credentials: 'include' });
       const data = await r.json();
-      if (data.ok) {
-        epgSyncMsg = 'Sync complete. Reloading...';
+      if (data.ok || data.synced > 0) {
         await loadEpgData();
-        epgSyncMsg = `Synced ${epgSyncedCount} of ${epgEntries.length} playlists`;
+        const total = data.results?.length ?? epgEntries.length;
+        epgSyncMsg = `Synced ${data.synced ?? 0} of ${total} playlists`;
       } else {
         epgSyncMsg = `Error: ${data.error || 'Unknown'}`;
       }
@@ -179,9 +179,9 @@
       {#if epgSyncMsg}
         <span class="sync-msg">{epgSyncMsg}</span>
       {/if}
-      <button class="btn" onclick={triggerEpgSync} disabled={epgSyncing}>
+      <Btn icon={RefreshCw} onclick={triggerEpgSync} disabled={epgSyncing}>
         {epgSyncing ? 'Syncing…' : 'Enrich EPG'}
-      </button>
+      </Btn>
     </div>
   </div>
 
@@ -307,14 +307,6 @@
     color: var(--ink, #1a1814); transition: all 0.15s;
   }
   .url-copy-btn:hover { background: var(--bg, #f6f4ef); border-color: var(--ink-3, #8a8678); }
-  .btn {
-    padding: 8px 16px; border-radius: 6px; border: 1px solid var(--hair, #e3dfd0);
-    background: var(--bg, #f6f4ef); color: var(--ink, #1a1814);
-    font-family: inherit; font-size: 13px; font-weight: 600;
-    cursor: pointer; transition: all 0.15s;
-  }
-  .btn:hover:not(:disabled) { background: var(--bg-2, #ecead9); }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .sync-msg {
     font-size: 12px; color: var(--ink-faint);
     max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
