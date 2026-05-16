@@ -5,7 +5,7 @@
 import { json } from '@sveltejs/kit';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { normalizeCategory } from '../../../../../../src/lib/data/categories';
+import { normalizeCategory } from '$lib/data/categories';
 import type { RequestHandler } from './$types';
 
 interface Ch { name:string; logoUrl:string; group:string; url:string; tvgId:string; }
