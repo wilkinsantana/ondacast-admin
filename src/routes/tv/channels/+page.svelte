@@ -230,11 +230,11 @@
           </select>
           <span class="page-size-label">per page</span>
         </div>
-        <button class="sel-btn" onclick={() => { page = 1; }}" disabled={page === 1}>First</button>
-        <button class="sel-btn" onclick={() => { page = Math.max(1, page - 1); }}" disabled={page === 1}>Prev</button>
+        <button class="sel-btn" onclick={() => page = 1} disabled={page === 1}>First</button>
+        <button class="sel-btn" onclick={() => page = Math.max(1, page - 1)} disabled={page === 1}>Prev</button>
         <span class="page-info">Page {page} of {totalPages} ({filtered.length.toLocaleString()} channels)</span>
-        <button class="sel-btn" onclick={() => { page = Math.min(totalPages, page + 1); }}" disabled={page >= totalPages}>Next</button>
-        <button class="sel-btn" onclick={() => { page = totalPages; }}" disabled={page >= totalPages}>Last</button>
+        <button class="sel-btn" onclick={() => page = Math.min(totalPages, page + 1)} disabled={page >= totalPages}>Next</button>
+        <button class="sel-btn" onclick={() => page = totalPages} disabled={page >= totalPages}>Last</button>
       </div>
     {/if}
   {/if}
