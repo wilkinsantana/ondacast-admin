@@ -5,7 +5,7 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async ({ fetch }) => {
   try {
     // RadioDune is on the same server — use internal DNS/hostname
-    const r = await fetch('https://radiodune.com/api/tv/channels?limit=500', {
+    const r = await fetch('https://radiodune.com/api/tv/channels?limit=1000', {
       headers: { 'Accept': 'application/json' },
       signal: AbortSignal.timeout(30000),
     });
