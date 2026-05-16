@@ -38,6 +38,7 @@ export const NAV: NavGroup[] = [
       { id: 'audiobooks', label: 'Audiobooks',      icon: BookOpen,      badge: undefined },
       { id: 'metadata',   label: 'Now-playing',     icon: Music,         badge: undefined },
       { id: 'categories', label: 'Categories',      icon: Tags,          badge: undefined },
+      { id: 'tv',         label: 'TV Playlists',   icon: Monitor,       badge: undefined },
     ],
   },
   {
