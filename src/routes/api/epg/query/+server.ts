@@ -1,4 +1,4 @@
-// GET /api/epg/query?epg=1&channel=BBC&limit=50
+// GET /api/epg/query — v2: word-match + CORS?epg=1&channel=BBC&limit=50
 // Server-side EPG XML parsing — returns only matched programmes as JSON.
 // Avoids downloading 50-450 MB XML files to the browser.
 import { json } from '@sveltejs/kit';
@@ -30,12 +30,17 @@ export const GET: RequestHandler = async ({ url }) => {
   const limit = Math.min(Number(url.searchParams.get('limit') || '50'), 200);
 
   if (!channelFilter) {
-    return json({ programmes: [], hint: 'Pass ?channel= to filter' });
+    return json({ programmes: [], hint: 'Pass ?channel= to filter' }, {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    });
   }
 
   const xmlPath = join(outDir(), `epg${epgId}.xml`);
   if (!existsSync(xmlPath)) {
-    return json({ programmes: [], error: `epg${epgId}.xml not found` }, { status: 404 });
+    return json({ programmes: [], error: 'epg' + epgId + '.xml not found' }, {
+      status: 404,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    });
   }
 
   try {
@@ -52,7 +57,10 @@ export const GET: RequestHandler = async ({ url }) => {
       // Extract channel from attributes
       const chMatch = attrs.match(/channel="([^"]*)"/i);
       const channel = (chMatch?.[1] || '').toLowerCase();
-      if (!channel.includes(channelFilter)) continue;
+      // Word-based matching: each word in the filter must appear in the channel ID
+      const filterWords = channelFilter.split(/\s+/).filter(Boolean);
+      const matches = filterWords.every((w: string) => channel.includes(w));
+      if (!matches) continue;
 
       // Extract start/stop times
       const startMatch = attrs.match(/start="(\d{14})\s*([+\-]\d{4})?"/i);
@@ -78,9 +86,14 @@ export const GET: RequestHandler = async ({ url }) => {
       if (programmes.length >= limit) break;
     }
 
-    return json({ programmes, total: programmes.length, truncated: programmes.length >= limit });
+    return json({ programmes, total: programmes.length, truncated: programmes.length >= limit }, {
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    });
   } catch (err) {
-    return json({ error: (err as Error).message }, { status: 500 });
+    return json({ error: (err as Error).message }, {
+      status: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    });
   }
 };
 
