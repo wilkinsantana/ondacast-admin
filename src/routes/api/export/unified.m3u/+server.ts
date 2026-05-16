@@ -5,6 +5,7 @@
 import { json } from '@sveltejs/kit';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
+import { normalizeCategory } from '../../../../../../src/lib/data/categories';
 import type { RequestHandler } from './$types';
 
 interface Ch { name:string; logoUrl:string; group:string; url:string; tvgId:string; }
@@ -40,7 +41,7 @@ export const GET: RequestHandler = async ({ url, fetch }) => {
   if(!all.length) return json({error:'No channels',details:errs},{status:422});
 
   const lines=['#EXTM3U']; let n=1;
-  for(const ch of all){const p=[`#EXTINF:-1 tvg-chno="${n}"`];if(ch.tvgId)p.push(`tvg-id="${ch.tvgId}"`);if(ch.logoUrl)p.push(`tvg-logo="${ch.logoUrl}"`);p.push(`group-title="${ch.group||ns[0]||'OndaCast'}"`);p.push(','+ch.name);lines.push(p.join(' '));lines.push(ch.url);n++;}
+  for(const ch of all){const grp=normalizeCategory(ch.group||ns[0]||'OndaCast');const p=[`#EXTINF:-1 tvg-chno="${n}"`];if(ch.tvgId)p.push(`tvg-id="${ch.tvgId}"`);if(ch.logoUrl)p.push(`tvg-logo="${ch.logoUrl}"`);p.push(`group-title="${grp}"`);p.push(','+ch.name);lines.push(p.join(' '));lines.push(ch.url);n++;}
   const outb=lines.join('\n')+'\n';
 
   if(save){const dir=outDir();writeFileSync(join(dir,filename),outb,'utf-8');return json({ok:true,url:'https://ondacast.com/tvpl/'+filename,channels:all.length,errors:errs.length>0?errs:undefined});}
