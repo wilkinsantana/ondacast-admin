@@ -16,6 +16,7 @@
   let exportOk = $state('');
   let selectedIds = $state<Set<string>>(new Set());
   let hotlinkUrl = $state('');
+  let includeCurated = $state(true);
 
   onMount(async () => { await Promise.all([loadPlaylists(), loadEpgStatus()]); });
 
@@ -49,7 +50,7 @@
     exporting=true; exportError=''; exportOk=''; hotlinkUrl='';
     const urls=list.map(p=>encodeURIComponent(p.url)).join(',');
     const names=list.map(p=>encodeURIComponent(p.name)).join(',');
-    const saveParam = save ? '&save=1' : '';
+    const saveParam = (save ? '&save=1&name=unified' : '') + (includeCurated ? '&include_curated=1' : '');
     try {
       const r=await fetch(`/api/export/unified.m3u?urls=${urls}&names=${names}${saveParam}`,{credentials:'include'});
       if(!r.ok){const e=await r.json().catch(()=>({error:`HTTP ${r.status}`}));exportError=e.error||`Export failed`;return;}
@@ -146,6 +147,9 @@
 <PageHead title="TV Playlists" sub={`${playlists.length} M3U and ${epgEntries.length} EPG`}>
   <Btn kind="primary" icon={Download} onclick={()=>exportUnified(false)} disabled={exporting||selectedList.length===0}>{exporting?'Exporting…':`Download M3U (${selectedChannels.toLocaleString()})`}</Btn>
   <Btn icon={Globe} onclick={()=>exportUnified(true)} disabled={exporting||selectedList.length===0}>{exporting?'Saving…':'Save & Hotlink'}</Btn>
+  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--ink-mid,#c5b896)">
+    <input type="checkbox" bind:checked={includeCurated} style="accent-color:#ffb454" /> Demo
+  </label>
   <Btn icon={RefreshCw} onclick={()=>{loadPlaylists();loadEpgStatus();}} disabled={loading&&epgLoading}>{loading&&epgLoading?'Loading…':'Refresh'}</Btn>
 </PageHead>
 

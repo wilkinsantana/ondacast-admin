@@ -142,6 +142,25 @@ export const GET: RequestHandler = async ({ url, fetch }) => {
     }
   }
 
+  // Fetch curated/demo channels from RadioDune if requested
+  if (url.searchParams.get('include_curated') === '1') {
+    try {
+      const curatedRes = await fetch('https://radiodune.com/api/tv/channels?limit=500', {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (curatedRes.ok) {
+        const curatedData = await curatedRes.json() as { channels?: { id:string; name:string; logo?:string; categories?:string[]; streamUrl:string }[] };
+        for (const ch of (curatedData.channels ?? [])) {
+          if (!ch.streamUrl || !ch.streamUrl.startsWith('https://')) continue;
+          const logoUrl = ch.logo ?? '';
+          const group = (ch.categories ?? [])[0] ?? 'Curated';
+          allChannels.push({ name: ch.name, logoUrl, group, url: ch.streamUrl, tvgId: ch.id });
+        }
+      }
+    } catch { /* curated fetch is best-effort */ }
+  }
+
   if (allChannels.length === 0) {
     return json({
       error: 'No channels extracted from any playlist',
@@ -159,7 +178,7 @@ export const GET: RequestHandler = async ({ url, fetch }) => {
   }
 
   const m3uBody = lines.join('\n') + '\n';
-  const filename = `ondacast-unified-${new Date().toISOString().slice(0, 10)}.m3u`;
+  const filename = (url.searchParams.get('name') || 'unified') + '.m3u';
 
   if (url.searchParams.get('save') === '1') {
     const { mkdirSync, writeFileSync } = await import('node:fs');
