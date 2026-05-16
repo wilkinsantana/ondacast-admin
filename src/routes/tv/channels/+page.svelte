@@ -48,37 +48,39 @@
   let selectedEpgId = $state<number>(2);
   let bulkMsg = $state('');
 
-  onMount(async () => { loadOverrides(); await loadChannels(); });
+  onMount(async () => { await loadOverrides(); await loadChannels(); });
 
-  function loadOverrides() {
-    try { overrides = JSON.parse(localStorage.getItem(OVERRIDES_KEY) ?? '{}'); }
-    catch { overrides = {}; }
+  async function loadOverrides() {
+    try {
+      const r = await fetch('/api/epg/curated');
+      if (r.ok) {
+        const d = await r.json();
+        overrides = d.overrides || {};
+      }
+    } catch { overrides = {}; }
   }
-  function saveOverrides() {
-    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
+  async function saveOverrides() {
+    // Still cache locally for speed, but server is source of truth
+    try { localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides)); } catch { /* ok */ }
   }
 
   async function syncCuratedEpgToServer() {
-    // Build { channelId: epgUrl } map for all channels with EPG assigned
-    const map: Record<string, string> = {};
-    for (const [id, ov] of Object.entries(overrides)) {
-      if (ov.epgUrl) map[id] = ov.epgUrl;
-    }
     try {
       const r = await fetch('/api/epg/curated', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(map),
+        body: JSON.stringify({ overrides }),
       });
       if (r.ok) {
-        bulkMsg = `Synced ${Object.keys(map).length} EPG assignments to ondacast.com/tvpl/curated-epg.json`;
+        const d = await r.json();
+        bulkMsg = 'Synced ' + (d.channelCount || 0) + ' overrides to server';
         setTimeout(() => (bulkMsg = ''), 5000);
       } else {
-        bulkMsg = `Sync failed: HTTP ${r.status}`;
+        bulkMsg = 'Sync failed: HTTP ' + r.status;
         setTimeout(() => (bulkMsg = ''), 5000);
       }
     } catch (e) {
-      bulkMsg = `Sync error: ${(e as Error).message}`;
+      bulkMsg = 'Sync error: ' + (e as Error).message;
       setTimeout(() => (bulkMsg = ''), 5000);
     }
   }
@@ -115,8 +117,9 @@
     overrides = next;
     saveOverrides();
     channels = channels.map(c => ({ ...c, epgUrl: epg.url }));
-    bulkMsg = `Set EPG #${epg.id} (${epg.owner}) on ${channels.length.toLocaleString()} channels`;
+    bulkMsg = 'Set EPG #' + epg.id + ' (' + epg.owner + ') on ' + channels.length.toLocaleString() + ' channels';
     setTimeout(() => (bulkMsg = ''), 5000);
+    syncCuratedEpgToServer();
   }
 
   function autoMatchEpg() {
@@ -146,8 +149,9 @@
     overrides = next;
     saveOverrides();
     channels = channels.map(c => ({ ...c, epgUrl: next[c.id]?.epgUrl }));
-    bulkMsg = `Auto-matched EPG for ${matched.toLocaleString()} of ${channels.length.toLocaleString()} channels`;
+    bulkMsg = 'Auto-matched EPG for ' + matched.toLocaleString() + ' of ' + channels.length.toLocaleString() + ' channels';
     setTimeout(() => (bulkMsg = ''), 6000);
+    syncCuratedEpgToServer();
   }
 
   let filtered = $derived(

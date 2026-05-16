@@ -1,6 +1,7 @@
-// POST /api/epg/curated - writes curated channel EPG map to shared tvpl dir.
+// POST /api/epg/curated — writes curated channel overrides to shared tvpl dir.
+// GET /api/epg/curated — reads overrides back.
 import { json } from '@sveltejs/kit';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import type { RequestHandler } from './$types';
 
@@ -16,13 +17,26 @@ function outDir(): string {
   return fb;
 }
 
+export const GET: RequestHandler = async () => {
+  const dir = outDir();
+  const fp = join(dir, 'curated-overrides.json');
+  if (!existsSync(fp)) return json({ overrides: {} });
+  try {
+    const raw = readFileSync(fp, 'utf-8');
+    return json(JSON.parse(raw));
+  } catch {
+    return json({ overrides: {} });
+  }
+};
+
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const body = await request.json() as Record<string, string>;
+    const body = await request.json() as { overrides?: Record<string, { epgUrl?: string; hidden?: boolean }> };
+    const overrides = body.overrides || {};
     const ids: number[] = [];
-    for (const url of Object.values(body)) {
-      if (!url) continue;
-      const m = url.match(/epg(\d+)\.xml/);
+    for (const ov of Object.values(overrides)) {
+      if (!ov.epgUrl) continue;
+      const m = ov.epgUrl.match(/epg(\d+)\.xml/);
       if (m) ids.push(Number(m[1]));
     }
     const uniqueIds = [...new Set(ids)].sort((a, b) => a - b);
@@ -30,10 +44,12 @@ export const POST: RequestHandler = async ({ request }) => {
     const payload = {
       updatedAt: new Date().toISOString(),
       epgIds: uniqueIds,
-      channelCount: Object.keys(body).length,
+      overrides,
+      channelCount: Object.keys(overrides).length,
     };
-    writeFileSync(join(dir, 'curated-epg.json'), JSON.stringify(payload), 'utf-8');
-    return json({ ok: true, epgIds: uniqueIds.length, channelCount: Object.keys(body).length });
+    writeFileSync(join(dir, 'curated-epg.json'), JSON.stringify({ updatedAt: payload.updatedAt, epgIds: uniqueIds, channelCount: payload.channelCount }), 'utf-8');
+    writeFileSync(join(dir, 'curated-overrides.json'), JSON.stringify(payload), 'utf-8');
+    return json({ ok: true, epgIds: uniqueIds.length, channelCount: Object.keys(overrides).length });
   } catch (err) {
     return json({ ok: false, error: (err as Error).message }, { status: 400 });
   }
