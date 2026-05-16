@@ -5,7 +5,7 @@
   import Table from '$lib/components/Table.svelte';
   import Tag from '$lib/components/Tag.svelte';
   import Btn from '$lib/components/Btn.svelte';
-  import { Download, RefreshCw, Radio, Copy, Check, Globe } from 'lucide-svelte';
+  import { Download, RefreshCw, Radio, Copy, Check, Globe, Link } from 'lucide-svelte';
 
   // ── M3U ──
   interface TVPlaylist { id:string; name:string; url:string; type:string; visible:boolean; channelCount?:number; lastSyncedAt?:number; }
@@ -14,6 +14,8 @@
   let exporting = $state(false);
   let exportError = $state('');
   let exportOk = $state('');
+  let selectedIds = $state<Set<string>>(new Set());
+  let hotlinkUrl = $state('');
 
   onMount(async () => { await Promise.all([loadPlaylists(), loadEpgStatus()]); });
 
@@ -30,18 +32,37 @@
     finally { loading = false; }
   }
 
-  async function exportUnified() {
+  let selectedList = $derived(selectedIds.size === 0 ? playlists : playlists.filter(p => selectedIds.has(p.id)));
+
+  function toggleSelect(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    selectedIds = next;
+  }
+  function selectAll() { selectedIds = new Set(playlists.map(p => p.id)); }
+  function selectNone() { selectedIds = new Set(); }
+
+  async function exportUnified(save: boolean) {
     if (playlists.length===0) return;
-    exporting=true; exportError=''; exportOk='';
-    const urls=playlists.map(p=>encodeURIComponent(p.url)).join(',');
-    const names=playlists.map(p=>encodeURIComponent(p.name)).join(',');
+    const list = selectedList;
+    if (list.length===0) return;
+    exporting=true; exportError=''; exportOk=''; hotlinkUrl='';
+    const urls=list.map(p=>encodeURIComponent(p.url)).join(',');
+    const names=list.map(p=>encodeURIComponent(p.name)).join(',');
+    const saveParam = save ? '&save=1' : '';
     try {
-      const r=await fetch(`/api/export/unified.m3u?urls=${urls}&names=${names}`,{credentials:'include'});
+      const r=await fetch(`/api/export/unified.m3u?urls=${urls}&names=${names}${saveParam}`,{credentials:'include'});
       if(!r.ok){const e=await r.json().catch(()=>({error:`HTTP ${r.status}`}));exportError=e.error||`Export failed`;return;}
-      const b=await r.blob();const a=document.createElement('a');
-      a.href=URL.createObjectURL(b);a.download=r.headers.get('Content-Disposition')?.match(/filename="?([^"]+)"?/)?.[1]??'ondacast-unified.m3u';
-      document.body.appendChild(a);a.click();document.body.removeChild(a);
-      exportOk=`Exported ~${playlists.reduce((s,p)=>s+(p.channelCount??0),0).toLocaleString()} channels`;
+      if (save) {
+        const d = await r.json();
+        if (d.ok) { hotlinkUrl = d.url; exportOk = `Saved ${d.channels.toLocaleString()} channels.`; }
+        else { exportError = d.error || 'Save failed'; }
+      } else {
+        const b=await r.blob();const a=document.createElement('a');
+        a.href=URL.createObjectURL(b);a.download=r.headers.get('Content-Disposition')?.match(/filename="?([^"]+)"?/)?.[1]??'ondacast-unified.m3u';
+        document.body.appendChild(a);a.click();document.body.removeChild(a);
+        exportOk=`Downloaded ~${list.reduce((s,p)=>s+(p.channelCount??0),0).toLocaleString()} channels`;
+      }
     } catch(e){exportError=`Export failed: ${(e as Error).message}`;}
     finally{exporting=false;}
   }
@@ -118,16 +139,24 @@
   function copyUrl(id:number){navigator.clipboard.writeText(`https://ondacast.com/tvpl/epg${id}.xml`).then(()=>{copiedId=id;setTimeout(()=>copiedId=null,2000);});}
 
   let totalChannels=$derived(playlists.reduce((s,p)=>s+(p.channelCount??0),0));
+  let selectedChannels=$derived(selectedList.reduce((s,p)=>s+(p.channelCount??0),0));
   let epgSyncedCount=$derived(epgEntries.filter(e=>e.sizeKB).length);
 </script>
 
 <PageHead title="TV Playlists" sub={`${playlists.length} M3U and ${epgEntries.length} EPG`}>
-  <Btn kind="primary" icon={Download} onclick={exportUnified} disabled={exporting||playlists.length===0}>{exporting?'Exporting…':'Export Unified M3U'}</Btn>
+  <Btn kind="primary" icon={Download} onclick={()=>exportUnified(false)} disabled={exporting||selectedList.length===0}>{exporting?'Exporting…':`Download M3U (${selectedChannels.toLocaleString()})`}</Btn>
+  <Btn icon={Globe} onclick={()=>exportUnified(true)} disabled={exporting||selectedList.length===0}>{exporting?'Saving…':'Save & Hotlink'}</Btn>
   <Btn icon={RefreshCw} onclick={()=>{loadPlaylists();loadEpgStatus();}} disabled={loading&&epgLoading}>{loading&&epgLoading?'Loading…':'Refresh'}</Btn>
 </PageHead>
 
 {#if exportError}<div class="banner banner-err" style="margin-top:16px">{exportError}</div>{/if}
 {#if exportOk}<div class="banner banner-ok" style="margin-top:16px">{exportOk}</div>{/if}
+{#if hotlinkUrl}
+  <div class="banner banner-ok" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span class="mono" style="font-size:11px;word-break:break-all">{hotlinkUrl}</span>
+    <button class="url-copy-btn" onclick={()=>navigator.clipboard.writeText(hotlinkUrl).then(()=>{exportOk='Copied!';setTimeout(()=>exportOk='',1500)})}><Copy size={12}/> Copy</button>
+  </div>
+{/if}
 
 <div class="panel" style="margin-top:20px">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
@@ -159,11 +188,22 @@
   {#if loading}<div style="padding:40px;text-align:center;color:var(--ink-faint)">Loading…</div>
   {:else if playlists.length===0}<div class="empty" style="padding:40px"><Radio size={32} style="color:var(--ink-faint)"/><h3>No TV playlists</h3><p>Add M3U playlists in OndaCast (TV — Manage Playlists).</p></div>
   {:else}
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button class="sel-btn" onclick={selectAll}>Select All</button>
+      <button class="sel-btn" onclick={selectNone}>Deselect All</button>
+    </div>
     <Table>
-      <thead><tr><th>Name</th><th>Source</th><th style="text-align:right">Channels</th><th>Last Synced</th><th>Status</th></tr></thead>
+      <thead><tr><th style="width:30px"></th><th>Name</th><th>Source</th><th style="text-align:right">Channels</th><th>Last Synced</th><th>Status</th></tr></thead>
       <tbody>
         {#each playlists as pl}
-          <tr><td class="name">{pl.name}</td><td class="mono" style="font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{pl.url}</td><td class="mono" style="text-align:right">{pl.channelCount?.toLocaleString()??'—'}</td><td class="mono" style="font-size:11px">{pl.lastSyncedAt?new Date(pl.lastSyncedAt).toLocaleDateString():'Never'}</td><td><Tag tone={pl.visible?'':'muted'} dot>{pl.visible?'Active':'Hidden'}</Tag></td></tr>
+          <tr>
+            <td><input type="checkbox" checked={selectedList.some(p=>p.id===pl.id)} onchange={()=>toggleSelect(pl.id)} style="cursor:pointer;accent-color:#ffb454" /></td>
+            <td class="name">{pl.name}</td>
+            <td class="mono" style="font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{pl.url}</td>
+            <td class="mono" style="text-align:right">{pl.channelCount?.toLocaleString()??'—'}</td>
+            <td class="mono" style="font-size:11px">{pl.lastSyncedAt?new Date(pl.lastSyncedAt).toLocaleDateString():'Never'}</td>
+            <td><Tag tone={pl.visible?'':'muted'} dot>{pl.visible?'Active':'Hidden'}</Tag></td>
+          </tr>
         {/each}
       </tbody>
     </Table>
@@ -180,4 +220,6 @@
   .url-copy-btn{display:inline-flex;align-items:center;gap:6px;background:#2a2218;border:1px solid #3d2f1f;border-radius:6px;padding:6px 10px;cursor:pointer;font-family:var(--font-mono,monospace);font-size:10px;color:#ffb454;transition:all 0.15s}
   .url-copy-btn:hover{background:#3a2f20;border-color:#5a4528}
   .sync-msg{font-size:12px;color:var(--ink-faint);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sel-btn{background:none;border:1px solid var(--line,#3d2f1f);color:var(--ink-mid,#c5b896);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px}
+  .sel-btn:hover{color:var(--ink,#f3ecdb);border-color:var(--line-bright,#5a4528)}
 </style>

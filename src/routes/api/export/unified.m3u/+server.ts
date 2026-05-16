@@ -161,6 +161,20 @@ export const GET: RequestHandler = async ({ url, fetch }) => {
   const m3uBody = lines.join('\n') + '\n';
   const filename = `ondacast-unified-${new Date().toISOString().slice(0, 10)}.m3u`;
 
+  if (url.searchParams.get('save') === '1') {
+    const { mkdirSync, writeFileSync } = await import('node:fs');
+    const { resolve, join } = await import('node:path');
+    const outDir = (() => {
+      if (process.env.ONDACAST_TVPL_DIR) return process.env.ONDACAST_TVPL_DIR;
+      for (const d of [resolve(process.cwd(), '..', 'static', 'tvpl'), resolve(process.cwd(), '..', '..', 'static', 'tvpl'), resolve(process.cwd(), 'static', 'tvpl')]) {
+        try { mkdirSync(d, { recursive: true }); return d; } catch { /* next */ }
+      }
+      const fb = resolve(process.cwd(), 'static', 'tvpl'); mkdirSync(fb, { recursive: true }); return fb;
+    })();
+    writeFileSync(join(outDir, filename), m3uBody, 'utf-8');
+    return json({ ok: true, url: `https://ondacast.com/tvpl/${filename}`, channels: allChannels.length, errors: errors.length > 0 ? errors : undefined });
+  }
+
   return new Response(m3uBody, {
     status: 200,
     headers: {
