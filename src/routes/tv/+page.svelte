@@ -75,19 +75,50 @@
   let epgSyncMsg = $state('');
 
   async function loadEpgStatus() {
-    epgLoading=true;
-    try{const r=await fetch('/api/epg/status');if(r.ok){const d=await r.json();if(d.syncedAt)epgStatusMsg=`Last sync: ${new Date(d.syncedAt).toLocaleString()}`;if(d.results){const m=new Map(d.results.map((r:{id:number;sizeKB?:number})=>[r.id,r]));epgEntries=epgEntries.map(e=>{const s=m.get(e.id);return s?.sizeKB?{...e,sizeKB:s.sizeKB}:e;});}}}
-    }catch{/* ok */}
-    finally{epgLoading=false;}
+    epgLoading = true;
+    try {
+      const r = await fetch('/api/epg/status');
+      if (r.ok) {
+        const d = await r.json();
+        if (d.syncedAt) epgStatusMsg = 'Last sync: ' + new Date(d.syncedAt).toLocaleString();
+        if (d.results) {
+          const byId = new Map(d.results.map((r: { id: number; sizeKB?: number }) => [r.id, r]));
+          epgEntries = epgEntries.map((e) => {
+            const s = byId.get(e.id);
+            if (s && s.sizeKB) return { ...e, sizeKB: s.sizeKB };
+            return e;
+          });
+        }
+      }
+    } catch { /* ok */ }
+    finally { epgLoading = false; }
   }
 
   async function triggerEpgSync() {
-    epgSyncing=true;epgSyncMsg='';
-    try{const r=await fetch('/api/epg/sync',{method:'POST'});const d=await r.json();
-      if(d.ok||d.synced>0){if(d.results){const m=new Map(d.results.map((r:{id:number;sizeKB?:number})=>[r.id,r]));epgEntries=epgEntries.map(e=>{const s=m.get(e.id);return s?.sizeKB?{...e,sizeKB:s.sizeKB}:e;});}epgSyncMsg=`Synced ${d.synced??0} of ${d.results?.length??epgEntries.length} playlists`;}
-      else{epgSyncMsg=d.error||'Sync failed';}
-    }catch(e){epgSyncMsg=`Error: ${(e as Error).message}`;}
-    finally{epgSyncing=false;setTimeout(()=>epgSyncMsg='',6000);}
+    epgSyncing = true;
+    epgSyncMsg = '';
+    try {
+      const r = await fetch('/api/epg/sync', { method: 'POST' });
+      const d = await r.json();
+      if (d.ok || d.synced > 0) {
+        if (d.results) {
+          const byId = new Map(d.results.map((r: { id: number; sizeKB?: number }) => [r.id, r]));
+          epgEntries = epgEntries.map((e) => {
+            const s = byId.get(e.id);
+            if (s && s.sizeKB) return { ...e, sizeKB: s.sizeKB };
+            return e;
+          });
+        }
+        epgSyncMsg = 'Synced ' + (d.synced ?? 0) + ' of ' + (d.results?.length ?? epgEntries.length) + ' playlists';
+      } else {
+        epgSyncMsg = d.error || 'Sync failed';
+      }
+    } catch (e) {
+      epgSyncMsg = 'Error: ' + (e as Error).message;
+    } finally {
+      epgSyncing = false;
+      setTimeout(() => (epgSyncMsg = ''), 6000);
+    }
   }
 
   let copiedId=$state<number|null>(null);
