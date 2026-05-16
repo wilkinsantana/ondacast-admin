@@ -66,7 +66,7 @@
   async function loadChannels() {
     loading = true;
     try {
-      const r = await fetch('https://radiodune.com/api/tv/channels?limit=500', { headers: { Accept: 'application/json' } });
+      const r = await fetch('/api/tv/channels?limit=500', { credentials: 'include' });
       if (r.ok) {
         const data = await r.json();
         channels = (data.channels ?? []).map((c: CuratedChannel) => ({
