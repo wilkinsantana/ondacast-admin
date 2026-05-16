@@ -36,6 +36,8 @@
   let channels = $state<CuratedChannel[]>([]);
   let loading = $state(true);
   let filterText = $state('');
+  let page = $state(1);
+  const pageSize = 200;
   let epgEditing = $state<string | null>(null);
   let epgValue = $state('');
 
@@ -129,6 +131,11 @@
   );
   let hiddenCount = $derived(Object.values(overrides).filter(o => o.hidden).length);
   let epgCount = $derived(Object.values(overrides).filter(o => o.epgUrl).length);
+  let totalPages = $derived(Math.ceil(filtered.length / pageSize) || 1);
+  let paged = $derived(filtered.slice((page - 1) * pageSize, page * pageSize));
+
+  // Reset page when filter changes
+  $effect(() => { if (filterText !== undefined) page = 1; });
 </script>
 
 <PageHead title="TV Channels" sub={`${channels.length} curated channels · ${hiddenCount} hidden · ${epgCount} with EPG`}>
@@ -160,7 +167,7 @@
     <Table>
       <thead><tr><th>#</th><th>Channel</th><th>Categories</th><th>EPG</th><th>Visible</th></tr></thead>
       <tbody>
-        {#each filtered.slice(0, 200) as ch}
+        {#each paged as ch}
           <tr class:dimmed={overrides[ch.id]?.hidden}>
             <td class="mono">{ch.number ?? '—'}</td>
             <td>
@@ -186,8 +193,14 @@
         {/each}
       </tbody>
     </Table>
-    {#if filtered.length > 200}
-      <div style="padding:12px;text-align:center;color:var(--ink-faint)">Showing 200 of {filtered.length} channels. Use filter to narrow.</div>
+    {#if filtered.length > pageSize}
+      <div class="pager">
+        <button class="sel-btn" onclick={() => { page = 1; }}" disabled={page === 1}>First</button>
+        <button class="sel-btn" onclick={() => { page = Math.max(1, page - 1); }}" disabled={page === 1}>Prev</button>
+        <span class="page-info">Page {page} of {totalPages} ({filtered.length.toLocaleString()} channels)</span>
+        <button class="sel-btn" onclick={() => { page = Math.min(totalPages, page + 1); }}" disabled={page >= totalPages}>Next</button>
+        <button class="sel-btn" onclick={() => { page = totalPages; }}" disabled={page >= totalPages}>Last</button>
+      </div>
     {/if}
   {/if}
 </div>
@@ -213,5 +226,16 @@
     background:rgba(110,231,120,0.1); color:#6ee787;
     border:1px solid rgba(110,231,120,0.2);
     font-size:12px; font-family:var(--font-mono,monospace);
+  }
+  .pager {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px; margin-top: 8px;
+  }
+  .page-info {
+    font-size: 11px; color: var(--ink-dim,#8a7d63);
+    font-family: var(--font-mono,monospace); min-width: 200px; text-align: center;
+  }
+  .sel-btn:disabled {
+    opacity: 0.35; cursor: not-allowed;
   }
 </style>
