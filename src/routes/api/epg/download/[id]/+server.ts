@@ -24,7 +24,6 @@ export const GET: RequestHandler = async ({ params }) => {
       status: 200,
       headers: {
         'Content-Type': 'application/xml; charset=utf-8',
-        'Content-Disposition': `attachment; filename="epg${id}.xml"`,
         'Access-Control-Allow-Origin': '*',
       },
     });
