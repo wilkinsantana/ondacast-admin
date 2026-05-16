@@ -41,9 +41,13 @@ export const GET: RequestHandler = async ({ url, fetch }) => {
   if(!all.length) return json({error:'No channels',details:errs},{status:422});
 
   const lines=['#EXTM3U']; let n=1;
-  for(const ch of all){const grp=normalizeCategory(ch.group||ns[0]||'OndaCast');const p=[`#EXTINF:-1 tvg-chno="${n}"`];if(ch.tvgId)p.push(`tvg-id="${ch.tvgId}"`);if(ch.logoUrl)p.push(`tvg-logo="${ch.logoUrl}"`);p.push(`group-title="${grp}"`);p.push(','+ch.name);lines.push(p.join(' '));lines.push(ch.url);n++;}
+  const rawGroups=new Set<string>(); const normGroups=new Set<string>(); const merges:Record<string,string>={};
+  for(const ch of all){const raw=ch.group||ns[0]||'OndaCast';const grp=normalizeCategory(raw);rawGroups.add(raw);normGroups.add(grp);if(raw!==grp)merges[raw]=grp;
+    const p=[`#EXTINF:-1 tvg-chno="${n}"`];if(ch.tvgId)p.push(`tvg-id="${ch.tvgId}"`);if(ch.logoUrl)p.push(`tvg-logo="${ch.logoUrl}"`);p.push(`group-title="${grp}"`);p.push(','+ch.name);lines.push(p.join(' '));lines.push(ch.url);n++;}
   const outb=lines.join('\n')+'\n';
+  const mergeList=Object.entries(merges).map(([from,to])=>({from,to})).sort((a,b)=>a.to.localeCompare(b.to)||a.from.localeCompare(b.from));
+  const stats={raw:rawGroups.size,normalized:normGroups.size,merges:mergeList};
 
-  if(save){const dir=outDir();writeFileSync(join(dir,filename),outb,'utf-8');return json({ok:true,url:'https://ondacast.com/tvpl/'+filename,channels:all.length,errors:errs.length>0?errs:undefined});}
-  return new Response(outb,{status:200,headers:{'Content-Type':'audio/x-mpegurl; charset=utf-8','Content-Disposition':'attachment; filename="'+filename+'"','Content-Length':String(new TextEncoder().encode(outb).length)}});
+  if(save){const dir=outDir();writeFileSync(join(dir,filename),outb,'utf-8');return json({ok:true,url:'https://ondacast.com/tvpl/'+filename,channels:all.length,stats,errors:errs.length>0?errs:undefined});}
+  return json({ok:true,channels:all.length,stats,errors:errs.length>0?errs:undefined,m3u:outb});
 };

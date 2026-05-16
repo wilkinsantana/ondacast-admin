@@ -16,6 +16,7 @@
   let selectedIds = $state<Set<string>>(new Set());
   let hotlinkUrl = $state('');
   let includeCurated = $state(true);
+  let stats = $state<{raw:number;normalized:number;merges:{from:string;to:string}[]}|null>(null);
 
   onMount(async () => { await loadPlaylists(); });
 
@@ -46,7 +47,7 @@
     if (playlists.length === 0) return;
     const list = selectedList;
     if (list.length === 0 && !includeCurated) return;
-    exporting = true; exportError = ''; exportOk = ''; hotlinkUrl = '';
+    exporting = true; exportError = ''; exportOk = ''; hotlinkUrl = ''; stats = null;
     const urls = list.map(p => encodeURIComponent(p.url)).join(',');
     const names = list.map(p => encodeURIComponent(p.name)).join(',');
     const saveParam = save ? '&save=1&name=unified' : '';
@@ -54,16 +55,19 @@
     try {
       const r = await fetch(`/api/export/unified.m3u?urls=${urls}&names=${names}${saveParam}${s2Param}`, { credentials: 'include' });
       if (!r.ok) { const j = await r.json().catch(() => ({ error: `HTTP ${r.status}` })); exportError = j.error || j.details?.join('; ') || 'Export failed'; return; }
+      const d = await r.json();
+      if (!d.ok) { exportError = d.error || 'Export failed'; return; }
+      stats = d.stats ?? null;
       if (save) {
-        const d = await r.json();
-        if (d.ok) { hotlinkUrl = d.url; exportOk = `Saved ${d.channels.toLocaleString()} channels.`; }
-        else { exportError = d.error || 'Save failed'; }
+        hotlinkUrl = d.url;
+        exportOk = `Saved ${d.channels.toLocaleString()} channels.`;
       } else {
-        const b = await r.blob(); const a = document.createElement('a');
-        a.href = URL.createObjectURL(b);
-        a.download = r.headers.get('Content-Disposition')?.match(/filename="?([^"]+)"?/)?.[1] ?? 'ondacast-unified.m3u';
+        const blob = new Blob([d.m3u], { type: 'audio/x-mpegurl' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'ondacast-unified.m3u';
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        exportOk = `Downloaded ~${list.reduce((s,p) => s + (p.channelCount ?? 0), 0).toLocaleString()} channels`;
+        exportOk = `Downloaded ${d.channels.toLocaleString()} channels.`;
       }
     } catch (e) { exportError = `Export failed: ${(e as Error).message}`; }
     finally { exporting = false; }
@@ -92,6 +96,21 @@
   <div class="banner banner-ok" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span class="mono" style="font-size:11px;word-break:break-all">{hotlinkUrl}</span>
     <button class="url-copy-btn" onclick={() => navigator.clipboard.writeText(hotlinkUrl).then(() => { exportOk = 'Copied!'; setTimeout(() => exportOk = '', 1500); })}><Copy size={12} /> Copy</button>
+  </div>
+{/if}
+{#if stats}
+  <div class="banner banner-stats" style="margin-top:8px">
+    <div class="stats-row"><span class="stats-label">Categories</span> <span class="stats-val">{stats.raw}</span> &rarr; <span class="stats-val stats-ok">{stats.normalized}</span> <span class="stats-saved">({stats.raw - stats.normalized} merged)</span></div>
+    {#if stats.merges.length > 0}
+      <details class="stats-details">
+        <summary class="stats-summary">Show merges ({stats.merges.length})</summary>
+        <div class="stats-merges">
+          {#each stats.merges as m}
+            <span class="merge-item"><code class="merge-from">{m.from}</code> &rarr; <code class="merge-to">{m.to}</code></span>
+          {/each}
+        </div>
+      </details>
+    {/if}
   </div>
 {/if}
 
@@ -135,4 +154,17 @@
   .sel-btn:hover { color: var(--ink,#f3ecdb); border-color: var(--line-bright,#5a4528); }
   .url-copy-btn { display: inline-flex; align-items: center; gap: 6px; background: #2a2218; border: 1px solid #3d2f1f; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-family: var(--font-mono,monospace); font-size: 10px; color: #c5b896; transition: all 0.15s; }
   .url-copy-btn:hover { background: #3d2f1f; border-color: #5a4528; color: #f3ecdb; }
+  .banner-stats { background: rgba(255,180,84,0.08); border: 1px solid rgba(255,180,84,0.2); color: #d4b87a; }
+  .stats-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .stats-label { color: #8a7a5a; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; }
+  .stats-val { font-weight: 600; color: #c5b896; font-size: 14px; }
+  .stats-ok { color: #6ee787; }
+  .stats-saved { color: #8a7a5a; font-size: 11px; }
+  .stats-details { margin-top: 8px; }
+  .stats-summary { cursor: pointer; font-size: 11px; color: #8a7a5a; }
+  .stats-summary:hover { color: #c5b896; }
+  .stats-merges { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; max-height: 120px; overflow-y: auto; }
+  .merge-item { font-size: 11px; white-space: nowrap; }
+  .merge-from { color: #8a7a5a; background: rgba(138,122,90,0.15); padding: 1px 5px; border-radius: 3px; }
+  .merge-to { color: #6ee787; background: rgba(110,231,120,0.12); padding: 1px 5px; border-radius: 3px; }
 </style>
