@@ -39,6 +39,7 @@ export const NAV: NavGroup[] = [
       { id: 'metadata',   label: 'Now-playing',     icon: Music,         badge: undefined },
       { id: 'categories', label: 'Categories',      icon: Tags,          badge: undefined },
       { id: 'tv',         label: 'TV Playlists',   icon: Monitor,       badge: undefined },
+      { id: 'tv/channels',label: 'TV Channels',    icon: Radio,         badge: undefined },
     ],
   },
   {
