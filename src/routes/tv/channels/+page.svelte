@@ -37,9 +37,8 @@
   });
 
   function loadOverrides() {
-    try {
-      overrides = JSON.parse(localStorage.getItem(OVERRIDES_KEY) ?? '{}');
-    } catch { overrides = {}; }
+    try { overrides = JSON.parse(localStorage.getItem(OVERRIDES_KEY) ?? '{}'); }
+    catch { overrides = {}; }
   }
 
   function saveOverrides() {
@@ -47,8 +46,8 @@
   }
 
   function toggleHidden(id: string) {
-    const current = overrides[id]?.hidden ?? false;
-    overrides = { ...overrides, [id]: { ...overrides[id], hidden: !current } };
+    const curr = overrides[id]?.hidden ?? false;
+    overrides = { ...overrides, [id]: { ...overrides[id], hidden: !curr } };
     saveOverrides();
   }
 
@@ -66,57 +65,24 @@
   async function loadChannels() {
     loading = true;
     try {
-      // Load manifest to get available files, then fetch the main country slice (US)
-      const manifestR = await fetch('/api/tv/catalog/manifest.json');
-      if (!manifestR.ok) throw new Error('manifest not found');
-      const manifest = await manifestR.json();
-      // Load channels from the largest country file (US) plus category files
-      const allChannels: CuratedChannel[] = [];
-      const filesToLoad = manifest.countries?.slice(0, 5).map((c: {file:string}) => c.file) ?? ['c/us.m3u'];
-      for (const file of filesToLoad) {
-        try {
-          const r = await fetch(`/api/tv/catalog/${file}`);
-          if (!r.ok) continue;
-          const body = await r.text();
-          // Parse basic M3U - extract EXTINF lines and URLs
-          const lines = body.split(/\r?\n/);
-          let pendingName = '';
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (trimmed.startsWith('#EXTINF')) {
-              const commaIdx = trimmed.indexOf(',');
-              pendingName = commaIdx >= 0 ? trimmed.slice(commaIdx + 1).trim() : trimmed;
-              // Extract tvg-logo and group-title
-              const logoMatch = trimmed.match(/tvg-logo="([^"]*)"/);
-              const groupMatch = trimmed.match(/group-title="([^"]*)"/);
-              const logo = logoMatch?.[1] ?? '';
-              const group = groupMatch?.[1] ?? '';
-              const name = pendingName.replace(/\([^)]*\)/g, '').trim();
-              if (name && !allChannels.some(c => c.name === name)) {
-                allChannels.push({
-                  id: 'iptv-' + allChannels.length,
-                  name,
-                  logo: logo || undefined,
-                  categories: group ? [group] : [],
-                  streamUrl: '',
-                });
-              }
-            } else if (pendingName && trimmed.startsWith('https://')) {
-              const ch = allChannels.find(c => c.name === pendingName.replace(/\([^)]*\)/g, '').trim());
-              if (ch && !ch.streamUrl) ch.streamUrl = trimmed;
-              pendingName = '';
-            }
-          }
-        } catch { /* skip failed files */ }
+      const r = await fetch('/api/tv/curated', { credentials: 'include' });
+      if (r.ok) {
+        const data = await r.json();
+        channels = (data.channels ?? []).map((c: CuratedChannel) => ({
+          ...c,
+          ...(overrides[c.id] ?? {}),
+        }));
       }
-      channels = allChannels.filter(c => c.streamUrl).map(c => ({ ...c, ...(overrides[c.id] ?? {}) }));
     } catch { channels = []; }
     finally { loading = false; }
   }
 
   let filtered = $derived(
     filterText
-      ? channels.filter(c => c.name.toLowerCase().includes(filterText.toLowerCase()) || (c.categories ?? []).some(cat => cat.toLowerCase().includes(filterText.toLowerCase())))
+      ? channels.filter(c =>
+          c.name.toLowerCase().includes(filterText.toLowerCase()) ||
+          (c.categories ?? []).some(cat => cat.toLowerCase().includes(filterText.toLowerCase()))
+        )
       : channels
   );
 
