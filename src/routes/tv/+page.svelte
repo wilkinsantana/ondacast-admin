@@ -122,7 +122,7 @@
   }
 
   let copiedId=$state<number|null>(null);
-  function copyUrl(id:number){navigator.clipboard.writeText(`https://ondacast.com/tvpl/epg${id}.xml`).then(()=>{copiedId=id;setTimeout(()=>copiedId=null,2000);});}
+  function copyUrl(id:number){navigator.clipboard.writeText(`https://admin.ondacast.com/api/epg/download/${id}`).then(()=>{copiedId=id;setTimeout(()=>copiedId=null,2000);});}
 
   let totalChannels=$derived(playlists.reduce((s,p)=>s+(p.channelCount??0),0));
   let epgSyncedCount=$derived(epgEntries.filter(e=>e.sizeKB).length);
@@ -141,7 +141,7 @@
     <PanelHead icon={Globe} title="EPG Repository" sub={`${epgEntries.length} playlists, ${epgSyncedCount} synced${epgStatusMsg?' — '+epgStatusMsg:''}`} />
     <div style="display:flex;align-items:center;gap:8px">
       {#if epgSyncMsg}<span class="sync-msg">{epgSyncMsg}</span>{/if}
-      <Btn icon={RefreshCw} onclick={triggerEpgSync} disabled={epgSyncing}>{epgSyncing?'Syncing…':'Enrich EPG'}</Btn>
+      <Btn kind="primary" icon={RefreshCw} onclick={triggerEpgSync} disabled={epgSyncing}>{epgSyncing?'Syncing…':'Enrich EPG'}</Btn>
     </div>
   </div>
   <Table>
