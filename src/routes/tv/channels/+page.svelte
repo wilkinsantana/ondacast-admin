@@ -37,7 +37,8 @@
   let loading = $state(true);
   let filterText = $state('');
   let page = $state(1);
-  const pageSize = 200;
+  let pageSize = $state(50);
+  const PAGE_SIZES = [50, 100, 150, 200];
   let epgEditing = $state<string | null>(null);
   let epgValue = $state('');
 
@@ -134,8 +135,7 @@
   let totalPages = $derived(Math.ceil(filtered.length / pageSize) || 1);
   let paged = $derived(filtered.slice((page - 1) * pageSize, page * pageSize));
 
-  // Reset page when filter changes
-  $effect(() => { if (filterText !== undefined) page = 1; });
+
 </script>
 
 <PageHead title="TV Channels" sub={`${channels.length} curated channels · ${hiddenCount} hidden · ${epgCount} with EPG`}>
@@ -159,7 +159,7 @@
 <div class="panel" style="margin-top:20px">
   <PanelHead icon={Monitor} title="Curated Channels" sub="Per-channel overrides. Bulk actions above." />
   <div style="margin-bottom:12px">
-    <input class="input" style="max-width:300px" placeholder="Filter channels…" bind:value={filterText} />
+    <input class="input" style="max-width:300px" placeholder="Filter channels…" bind:value={filterText} oninput={() => (page = 1)} />
   </div>
   {#if loading}
     <div style="padding:40px;text-align:center;color:var(--ink-faint)">Loading channels…</div>
@@ -193,8 +193,17 @@
         {/each}
       </tbody>
     </Table>
-    {#if filtered.length > pageSize}
+    {#if totalPages > 1 || filtered.length > 0}
       <div class="pager">
+        <div class="page-size-group">
+          <span class="page-size-label">Show</span>
+          <select class="page-size-select" bind:value={pageSize} onchange={() => (page = 1)}>
+            {#each PAGE_SIZES as sz}
+              <option value={sz}>{sz}</option>
+            {/each}
+          </select>
+          <span class="page-size-label">per page</span>
+        </div>
         <button class="sel-btn" onclick={() => { page = 1; }}" disabled={page === 1}>First</button>
         <button class="sel-btn" onclick={() => { page = Math.max(1, page - 1); }}" disabled={page === 1}>Prev</button>
         <span class="page-info">Page {page} of {totalPages} ({filtered.length.toLocaleString()} channels)</span>
