@@ -81,12 +81,12 @@
       if (r.ok) {
         const d = await r.json();
         if (d.syncedAt) epgStatusMsg = 'Last sync: ' + new Date(d.syncedAt).toLocaleString();
-        if (d.results) {
-          const byId = new Map(d.results.map((r: { id: number; sizeKB?: number }) => [r.id, r]));
+        if (!d.persisted) epgStatusMsg += ' (ephemeral - set ONDACAST_TVPL_DIR for persistence)';
+        if (d.files) {
+          const byId = new Map(d.files.map((f: { id: number; exists: boolean; sizeKB?: number }) => [f.id, f]));
           epgEntries = epgEntries.map((e) => {
-            const s = byId.get(e.id);
-            if (s && s.sizeKB) return { ...e, sizeKB: s.sizeKB };
-            return e;
+            const f = byId.get(e.id);
+            return f && f.exists ? { ...e, sizeKB: f.sizeKB } : e;
           });
         }
       }
@@ -101,14 +101,7 @@
       const r = await fetch('/api/epg/sync', { method: 'POST' });
       const d = await r.json();
       if (d.ok || d.synced > 0) {
-        if (d.results) {
-          const byId = new Map(d.results.map((r: { id: number; sizeKB?: number }) => [r.id, r]));
-          epgEntries = epgEntries.map((e) => {
-            const s = byId.get(e.id);
-            if (s && s.sizeKB) return { ...e, sizeKB: s.sizeKB };
-            return e;
-          });
-        }
+        await loadEpgStatus();
         epgSyncMsg = 'Synced ' + (d.synced ?? 0) + ' of ' + (d.results?.length ?? epgEntries.length) + ' playlists';
       } else {
         epgSyncMsg = d.error || 'Sync failed';
