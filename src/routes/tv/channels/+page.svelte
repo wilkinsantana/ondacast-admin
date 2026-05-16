@@ -58,6 +58,31 @@
     localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
   }
 
+  async function syncCuratedEpgToServer() {
+    // Build { channelId: epgUrl } map for all channels with EPG assigned
+    const map: Record<string, string> = {};
+    for (const [id, ov] of Object.entries(overrides)) {
+      if (ov.epgUrl) map[id] = ov.epgUrl;
+    }
+    try {
+      const r = await fetch('/api/epg/curated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(map),
+      });
+      if (r.ok) {
+        bulkMsg = `Synced ${Object.keys(map).length} EPG assignments to ondacast.com/tvpl/curated-epg.json`;
+        setTimeout(() => (bulkMsg = ''), 5000);
+      } else {
+        bulkMsg = `Sync failed: HTTP ${r.status}`;
+        setTimeout(() => (bulkMsg = ''), 5000);
+      }
+    } catch (e) {
+      bulkMsg = `Sync error: ${(e as Error).message}`;
+      setTimeout(() => (bulkMsg = ''), 5000);
+    }
+  }
+
   function toggleHidden(id: string) {
     const curr = overrides[id]?.hidden ?? false;
     overrides = { ...overrides, [id]: { ...overrides[id], hidden: !curr } };
@@ -152,6 +177,7 @@
     </select>
     <button class="sel-btn bulk-btn" onclick={applyEpgToAll}>Apply to All Channels</button>
     <button class="sel-btn bulk-btn" onclick={autoMatchEpg}>Auto-match by Country & Category</button>
+    <button class="sel-btn bulk-btn" onclick={syncCuratedEpgToServer} style="border-color:rgba(110,231,120,0.4);color:#6ee787">Sync EPG to ondacast.com</button>
   </div>
   {#if bulkMsg}<div class="bulk-msg">{bulkMsg}</div>{/if}
 </div>
