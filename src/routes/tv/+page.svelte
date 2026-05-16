@@ -39,6 +39,8 @@
     syncedAt?: string;
   }
 
+  let epgSyncing = $state(false);
+  let epgSyncMsg = $state('');
   let epgEntries = $state<EpgEntry[]>([]);
   let epgLoading = $state(true);
   let epgLog = $state<{ syncedAt?: string; results?: { id: number; status: string; sizeKB?: number }[] }>({});
@@ -119,6 +121,27 @@
     finally { epgLoading = false; }
   }
 
+  async function triggerEpgSync() {
+    epgSyncing = true;
+    epgSyncMsg = '';
+    try {
+      const r = await fetch('/api/epg/sync', { method: 'POST', credentials: 'include' });
+      const data = await r.json();
+      if (data.ok) {
+        epgSyncMsg = 'Sync complete. Reloading...';
+        await loadEpgData();
+        epgSyncMsg = `Synced ${epgSyncedCount} of ${epgEntries.length} playlists`;
+      } else {
+        epgSyncMsg = `Error: ${data.error || 'Unknown'}`;
+      }
+    } catch (err) {
+      epgSyncMsg = `Error: ${(err as Error).message}`;
+    } finally {
+      epgSyncing = false;
+      setTimeout(() => (epgSyncMsg = ''), 6000);
+    }
+  }
+
   let copiedId = $state<number | null>(null);
   function copyUrl(entry: EpgEntry) {
     const url = `https://ondacast.com/tvpl/epg${entry.id}.xml`;
@@ -150,7 +173,17 @@
 
 <!-- ── EPG Repository ── -->
 <div class="panel" style="margin-top:20px">
-  <PanelHead icon={Globe} title="EPG Repository" sub={`${epgEntries.length} playlists · ${epgSyncedCount} synced${epgLog.syncedAt ? ` · Last sync: ${new Date(epgLog.syncedAt).toLocaleString()}` : ''}`} />
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <PanelHead icon={Globe} title="EPG Repository" sub={`${epgEntries.length} playlists · ${epgSyncedCount} synced${epgLog.syncedAt ? ` · Last sync: ${new Date(epgLog.syncedAt).toLocaleString()}` : ''}`} />
+    <div style="display:flex;align-items:center;gap:8px">
+      {#if epgSyncMsg}
+        <span class="sync-msg">{epgSyncMsg}</span>
+      {/if}
+      <button class="btn" onclick={triggerEpgSync} disabled={epgSyncing}>
+        {epgSyncing ? 'Syncing…' : 'Enrich EPG'}
+      </button>
+    </div>
+  </div>
 
   {#if epgLoading}
     <div style="padding:40px;text-align:center;color:var(--ink-faint)">Loading EPG data…</div>
@@ -274,4 +307,16 @@
     color: var(--ink, #1a1814); transition: all 0.15s;
   }
   .url-copy-btn:hover { background: var(--bg, #f6f4ef); border-color: var(--ink-3, #8a8678); }
+  .btn {
+    padding: 8px 16px; border-radius: 6px; border: 1px solid var(--hair, #e3dfd0);
+    background: var(--bg, #f6f4ef); color: var(--ink, #1a1814);
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn:hover:not(:disabled) { background: var(--bg-2, #ecead9); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .sync-msg {
+    font-size: 12px; color: var(--ink-faint);
+    max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
 </style>
