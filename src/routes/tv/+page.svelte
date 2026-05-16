@@ -184,7 +184,7 @@
   .empty{text-align:center;color:var(--ink-faint)}
   .empty h3{margin:12px 0 4px;font-size:15px;color:var(--ink)}
   .empty p{font-size:13px}
-  .url-copy-btn{display:inline-flex;align-items:center;gap:6px;background:var(--bg-2,#ecead9);border:1px solid var(--hair,#e3dfd0);border-radius:6px;padding:6px 10px;cursor:pointer;font-family:var(--font-mono,monospace);font-size:10px;color:var(--ink,#1a1814);transition:all 0.15s}
-  .url-copy-btn:hover{background:var(--bg,#f6f4ef);border-color:var(--ink-3,#8a8678)}
+  .url-copy-btn{display:inline-flex;align-items:center;gap:6px;background:#2a2218;border:1px solid #3d2f1f;border-radius:6px;padding:6px 10px;cursor:pointer;font-family:var(--font-mono,monospace);font-size:10px;color:#ffb454;transition:all 0.15s}
+  .url-copy-btn:hover{background:#3a2f20;border-color:#5a4528}
   .sync-msg{font-size:12px;color:var(--ink-faint);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
