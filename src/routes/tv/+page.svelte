@@ -115,7 +115,7 @@
   }
 
   let copiedId=$state<number|null>(null);
-  function copyUrl(id:number){navigator.clipboard.writeText(`https://admin.ondacast.com/api/epg/download/${id}`).then(()=>{copiedId=id;setTimeout(()=>copiedId=null,2000);});}
+  function copyUrl(id:number){navigator.clipboard.writeText(`https://ondacast.com/tvpl/epg${id}.xml`).then(()=>{copiedId=id;setTimeout(()=>copiedId=null,2000);});}
 
   let totalChannels=$derived(playlists.reduce((s,p)=>s+(p.channelCount??0),0));
   let epgSyncedCount=$derived(epgEntries.filter(e=>e.sizeKB).length);
