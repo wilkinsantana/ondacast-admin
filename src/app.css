@@ -330,6 +330,9 @@ html, body {
   grid-area: main;
   overflow-y: auto;
   padding: 22px 28px 60px;
+  max-width: 1280px;
+  justify-self: center;
+  width: 100%;
 }
 
 .page-head {
