@@ -70,11 +70,13 @@
   </div>
 {:else if auth.status === 'signed-in'}
   <div class="app">
-    <ShellSidebar {active} onNav={handleNav} />
-    <ShellTopbar {active} />
-    <main class="main">
-      {@render children()}
-    </main>
+    <div class="app-grid">
+      <ShellSidebar {active} onNav={handleNav} />
+      <ShellTopbar {active} />
+      <main class="main">
+        {@render children()}
+      </main>
+    </div>
   </div>
 {:else}
   {@render children()}
