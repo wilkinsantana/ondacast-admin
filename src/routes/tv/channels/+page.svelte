@@ -48,6 +48,10 @@
   let selectedEpgId = $state<number>(2);
   let bulkMsg = $state('');
   let syncTimer: ReturnType<typeof setTimeout> | null = null;
+  let msgTimer: ReturnType<typeof setTimeout> | null = null;
+  let syncing = $state(false);
+  let syncQueued = false;
+  let lastSyncedAt = $state<number | null>(null);
 
   onMount(async () => { await loadOverrides(); await loadChannels(); });
 
@@ -69,7 +73,21 @@
     }, 350);
   }
 
+  function showBulkMessage(msg: string, ms = 5000) {
+    bulkMsg = msg;
+    if (msgTimer) clearTimeout(msgTimer);
+    msgTimer = setTimeout(() => {
+      bulkMsg = '';
+      msgTimer = null;
+    }, ms);
+  }
+
   async function syncCuratedEpgToServer() {
+    if (syncing) {
+      syncQueued = true;
+      return;
+    }
+    syncing = true;
     try {
       const r = await fetch('/api/epg/curated', {
         method: 'POST',
@@ -78,15 +96,19 @@
       });
       if (r.ok) {
         const d = await r.json();
-        bulkMsg = 'Synced ' + (d.channelCount || 0) + ' overrides to server';
-        setTimeout(() => (bulkMsg = ''), 5000);
+        lastSyncedAt = Date.now();
+        showBulkMessage('Synced ' + (d.channelCount || 0) + ' overrides to ondacast.com', 6000);
       } else {
-        bulkMsg = 'Sync failed: HTTP ' + r.status;
-        setTimeout(() => (bulkMsg = ''), 5000);
+        showBulkMessage('Sync failed: HTTP ' + r.status, 7000);
       }
     } catch (e) {
-      bulkMsg = 'Sync error: ' + (e as Error).message;
-      setTimeout(() => (bulkMsg = ''), 5000);
+      showBulkMessage('Sync error: ' + (e as Error).message, 7000);
+    } finally {
+      syncing = false;
+      if (syncQueued) {
+        syncQueued = false;
+        void syncCuratedEpgToServer();
+      }
     }
   }
 
@@ -122,8 +144,7 @@
     overrides = next;
     saveOverrides();
     channels = channels.map(c => ({ ...c, epgUrl: epg.url }));
-    bulkMsg = 'Set EPG #' + epg.id + ' (' + epg.owner + ') on ' + channels.length.toLocaleString() + ' channels';
-    setTimeout(() => (bulkMsg = ''), 5000);
+    showBulkMessage('Set EPG #' + epg.id + ' (' + epg.owner + ') on ' + channels.length.toLocaleString() + ' channels', 5000);
     void syncCuratedEpgToServer();
   }
 
@@ -154,8 +175,7 @@
     overrides = next;
     saveOverrides();
     channels = channels.map(c => ({ ...c, epgUrl: next[c.id]?.epgUrl }));
-    bulkMsg = 'Auto-matched EPG for ' + matched.toLocaleString() + ' of ' + channels.length.toLocaleString() + ' channels';
-    setTimeout(() => (bulkMsg = ''), 6000);
+    showBulkMessage('Auto-matched EPG for ' + matched.toLocaleString() + ' of ' + channels.length.toLocaleString() + ' channels', 6000);
     void syncCuratedEpgToServer();
   }
 
@@ -186,9 +206,19 @@
     </select>
     <button class="sel-btn bulk-btn" onclick={applyEpgToAll}>Apply to All Channels</button>
     <button class="sel-btn bulk-btn" onclick={autoMatchEpg}>Auto-match by Country & Category</button>
-    <button class="sel-btn bulk-btn" onclick={syncCuratedEpgToServer} style="border-color:rgba(110,231,120,0.4);color:#6ee787">Sync EPG to ondacast.com</button>
+    <button
+      class="sel-btn bulk-btn {syncing ? 'syncing' : ''}"
+      onclick={syncCuratedEpgToServer}
+      disabled={syncing}
+      style="border-color:rgba(110,231,120,0.4);color:#6ee787"
+    >
+      {syncing ? 'Syncing EPG…' : 'Sync EPG to ondacast.com'}
+    </button>
   </div>
   {#if bulkMsg}<div class="bulk-msg">{bulkMsg}</div>{/if}
+  {#if lastSyncedAt}
+    <div class="bulk-meta">Last sync: {new Date(lastSyncedAt).toLocaleString()}</div>
+  {/if}
 </div>
 
 <div class="panel" style="margin-top:20px">
@@ -270,6 +300,16 @@
     background:rgba(110,231,120,0.1); color:#6ee787;
     border:1px solid rgba(110,231,120,0.2);
     font-size:12px; font-family:var(--font-mono,monospace);
+  }
+  .bulk-meta {
+    margin-top:6px;
+    color:var(--ink-dim,#8a7d63);
+    font-size:11px;
+    font-family:var(--font-mono,monospace);
+  }
+  .bulk-btn.syncing {
+    opacity: 0.8;
+    filter: saturate(0.8);
   }
   .pager {
     display: flex; align-items: center; justify-content: center; gap: 8px;
