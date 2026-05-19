@@ -5,6 +5,8 @@ import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import type { RequestHandler } from './$types';
 
+const CORS = { 'Access-Control-Allow-Origin': '*' };
+
 function outDir(): string {
   if (process.env.ONDACAST_TVPL_DIR) return process.env.ONDACAST_TVPL_DIR;
   for (const d of [
@@ -29,6 +31,10 @@ function outDir(): string {
   return fb;
 }
 
+export const OPTIONS: RequestHandler = async () => {
+  return new Response(null, { status: 204, headers: CORS });
+};
+
 export const GET: RequestHandler = async () => {
   const dir = outDir();
   const fp = join(dir, 'curated-overrides.json');
@@ -39,18 +45,18 @@ export const GET: RequestHandler = async () => {
       });
       if (r.ok) {
         const remote = await r.json();
-        return json(remote);
+        return json(remote, { headers: CORS });
       }
     } catch {
       /* fall through to empty */
     }
-    return json({ overrides: {} });
+    return json({ overrides: {} }, { headers: CORS });
   }
   try {
     const raw = readFileSync(fp, 'utf-8');
-    return json(JSON.parse(raw));
+    return json(JSON.parse(raw), { headers: CORS });
   } catch {
-    return json({ overrides: {} });
+    return json({ overrides: {} }, { headers: CORS });
   }
 };
 
@@ -78,8 +84,8 @@ export const POST: RequestHandler = async ({ request }) => {
       'utf-8'
     );
     writeFileSync(join(dir, 'curated-overrides.json'), JSON.stringify(payload, null, 2), 'utf-8');
-    return json({ ok: true, epgIds: uniqueIds.length, channelCount: Object.keys(overrides).length });
+    return json({ ok: true, epgIds: uniqueIds.length, channelCount: Object.keys(overrides).length }, { headers: CORS });
   } catch (err) {
-    return json({ ok: false, error: (err as Error).message }, { status: 400 });
+    return json({ ok: false, error: (err as Error).message }, { status: 400, headers: CORS });
   }
 };
