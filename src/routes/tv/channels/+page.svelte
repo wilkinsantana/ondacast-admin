@@ -47,6 +47,7 @@
   let overrides = $state<Record<string, ChannelOverride>>({});
   let selectedEpgId = $state<number>(2);
   let bulkMsg = $state('');
+  let syncTimer: ReturnType<typeof setTimeout> | null = null;
 
   onMount(async () => { await loadOverrides(); await loadChannels(); });
 
@@ -62,6 +63,10 @@
   async function saveOverrides() {
     // Still cache locally for speed, but server is source of truth
     try { localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides)); } catch { /* ok */ }
+    if (syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
+      void syncCuratedEpgToServer();
+    }, 350);
   }
 
   async function syncCuratedEpgToServer() {
@@ -119,7 +124,7 @@
     channels = channels.map(c => ({ ...c, epgUrl: epg.url }));
     bulkMsg = 'Set EPG #' + epg.id + ' (' + epg.owner + ') on ' + channels.length.toLocaleString() + ' channels';
     setTimeout(() => (bulkMsg = ''), 5000);
-    syncCuratedEpgToServer();
+    void syncCuratedEpgToServer();
   }
 
   function autoMatchEpg() {
@@ -151,7 +156,7 @@
     channels = channels.map(c => ({ ...c, epgUrl: next[c.id]?.epgUrl }));
     bulkMsg = 'Auto-matched EPG for ' + matched.toLocaleString() + ' of ' + channels.length.toLocaleString() + ' channels';
     setTimeout(() => (bulkMsg = ''), 6000);
-    syncCuratedEpgToServer();
+    void syncCuratedEpgToServer();
   }
 
   let filtered = $derived(
