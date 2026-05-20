@@ -33,7 +33,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     });
   }
 
-  const isApi = p === '/me' || p.startsWith('/me/') || p.startsWith('/auth/') || p.startsWith('/admin/');
+  const isApi = p === '/me' || p.startsWith('/me/') || p.startsWith('/auth/') || p.startsWith('/admin/') || p.startsWith('/announcements/');
   if (isApi) {
     const url = `${API_TARGET}${p}${event.url.search}`;
     const headers = new Headers(event.request.headers);
