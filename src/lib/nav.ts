@@ -71,6 +71,12 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    group: 'OUTREACH',
+    items: [
+      { id: 'announcements', label: 'Announcements', icon: Megaphone, badge: undefined },
+    ],
+  },
+  {
     group: 'BRAND',
     items: [
       { id: 'themes',     label: 'Themes',          icon: Palette,       badge: undefined },
